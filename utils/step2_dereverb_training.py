@@ -5,7 +5,7 @@ if True:
     from _helper_funcs_ import *
     START_TIME=datetime.datetime.now()
     datetime.datetime.now() - START_TIME
-    print(f"===========\npython {sys.argv}\n    Start_Time:{START_TIME}\n===========")
+    print(f"===========\npython {' '.join(sys.argv)}\n    Start_Time:{START_TIME}\n===========")
 if True:
     print('############ Printing Config Params ############')
     import argparse
@@ -47,7 +47,7 @@ if True:
 
 if True : ## versioning
     functions_dict = versioning(conf_DNN.Archi_vrs)
-    dereverb_model_wave2abs_trg = functions_dict['dereverb_model_wave2abs_trg']
+    dereverb_model_wave2abs = functions_dict['dereverb_model_wave2abs']
     generate_wavetolps_DereverbNN = functions_dict['generate_wavetolps_DereverbNN']
 if True : ## (WAVE) Full Data Read
     print("    ## Reading raw dictionary of the data...")
@@ -126,11 +126,12 @@ if True : ## kwargs for generator
 #################################################################
 END_TIME=datetime.datetime.now()
 print(f"===========\
-Done python {sys.argv}\
-    Start_Time  :{START_TIME}\
-    End_Time    :{END_TIME}\
-    Duration    :{END_TIME-START_TIME}\
-===========")
+    \nDone \
+    \npython {' '.join(sys.argv)}\
+    \nStart_Time  :{START_TIME}\
+    \nEnd_Time    :{END_TIME}\
+    \nDuration    :{END_TIME-START_TIME}\
+\n===========")
 
 """
 !import code; code.interact(local=vars())

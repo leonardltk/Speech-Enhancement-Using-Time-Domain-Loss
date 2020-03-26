@@ -34,12 +34,15 @@ Archi_vrs=
     fi
 
 ## Logs 
-    log_dir=./logs/${data_type}/${Archi_vrs}
+    log_dir_dataprep=./logs/${data_type}
+    log_dir_DNN=./logs/${Archi_vrs}
     if [[ $stage == -1 ]]; then
-        echo "  log_dir                         : $log_dir"
+        echo "  log_dir_dataprep                : $log_dir_dataprep"
+        echo "  log_dir_DNN                     : $log_dir_DNN"
         echo
     fi
-    mkdir -pv $log_dir
+    mkdir -pv $log_dir_dataprep
+    mkdir -pv $log_dir_DNN
 
 ## Current : Files/Dir
 if [ ! -f $data_type ]; then

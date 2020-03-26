@@ -184,12 +184,12 @@ class DNN_conf():
             self.kwargs_reg['reg_l2']=self.reg_l2
         ######################## Hyper Parameters ###############################
         if True:
-            self.initial_epoch = 1-1;
-            # self.epochs = 10;
-            self.epochs = 100;
             self.batch_size = 32;
-            # self.steps_per_epoch = 10;
-            self.steps_per_epoch = 1000;
+            self.initial_epoch = 1-1;
+
+            # self.epochs = 10;  self.steps_per_epoch = 10;
+            self.epochs = 100; self.steps_per_epoch = 2520; # (num_samples-256)/128/(context*batch_size)
+
             self.validation_steps = 0;
         ######################## Optimizer, Metrics Parameters ###############################
         if True: ## Optimizer
@@ -303,6 +303,13 @@ class DNN_conf():
             print(f'\t\t mdl_name                   :{self.mdl_name}')
             print(f'\t\t reg_mode                   :{self.reg_mode}')
             print(f'\t\t kwargs_reg                 :{self.kwargs_reg}')
+        print('\t############ Hyper Parameters ############')
+        if True:
+            print(f'\t\t batch_size                 :{self.batch_size}')
+            print(f'\t\t initial_epoch              :{self.initial_epoch}')
+            print(f'\t\t epochs                     :{self.epochs}')
+            print(f'\t\t steps_per_epoch            :{self.steps_per_epoch}')
+            print(f'\t\t validation_steps           :{self.validation_steps}')
         print('\t############ Optimizer, Metrics Parameters ############')
         if True:
             print(f'\t\t opt_mode                   :{self.opt_mode}')
@@ -324,3 +331,4 @@ class DNN_conf():
             print(f'\t\t results_dir                :{self.results_dir}')
             print(f'\t\t results_vrs_dir            :{self.results_vrs_dir}')
         return ""
+

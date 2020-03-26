@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-conda activate YOUR_ENVIRONMENT
+conda activate YOURENVIRONMENT
 << COMMENTS
     python                  3.6
     tensorflow              2.0.0

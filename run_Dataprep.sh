@@ -37,7 +37,7 @@ echo "Doing : $0 $@" && echo
 
 ## Dataprep 
 if [[ $stage == 0 ]]; then
-    curr_log_dir=$log_dir/step1_dataprep_raw2dict; mkdir -pv $curr_log_dir
+    curr_log_dir=$log_dir_dataprep/step1_dataprep_raw2dict; mkdir -pv $curr_log_dir
     echo && echo "Doing Stage $stage.$stage_v : step1_dataprep_raw2dict : saving raw wave files to dictionaries ..."
     if   [[ $stage_v == 1 ]]; then ## step1_dataprep_raw2dict : saving train/val/test
 

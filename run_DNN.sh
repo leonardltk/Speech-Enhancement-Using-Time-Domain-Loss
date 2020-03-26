@@ -38,10 +38,8 @@ echo "Doing : $0 $@" && echo
 if [[ $stage == 1 ]]; then ## Setup Model
     echo && echo "Stage $stage  : Setup Model ..."
     
-    curr_log_dir=$log_dir/step2_modelsetup; mkdir -pv $curr_log_dir
-
     if   [[ $stage_v == 1 ]]; then ## Setup Model (denoise)
-        curr_log=$curr_log_dir/step2_modelsetup.${Enh_mode}.log
+        curr_log=$log_dir_DNN/step2_modelsetup.denoise.log
         echo && echo "python utils/step2_modelsetup.py > $curr_log"
         python -u utils/step2_modelsetup.py \
             -Archi_vrs $Archi_vrs \
@@ -49,7 +47,7 @@ if [[ $stage == 1 ]]; then ## Setup Model
             > $curr_log
 
     elif   [[ $stage_v == 2 ]]; then ## Setup Model (dereverb)
-        curr_log=$curr_log_dir/step2_modelsetup.${Enh_mode}.log
+        curr_log=$log_dir_DNN/step2_modelsetup.dereverb.log
         echo && echo "python utils/step2_modelsetup.py > $curr_log"
         python -u utils/step2_modelsetup.py \
             -Archi_vrs $Archi_vrs \
@@ -65,8 +63,7 @@ if [[ $stage == 3 ]]; then ## Train Model
     echo && echo "Stage $stage  : Train Model ..."
     if   [[ $stage_v == 1 ]]; then ## Train Model (denoise)
 
-        curr_log_dir=$log_dir/step2_denoise_training; mkdir -pv $curr_log_dir
-        curr_log=$curr_log_dir/step2_denoise_training.log
+        curr_log=$log_dir_DNN/step2_denoise_training.log
         echo "python utils/step2_denoise_training.py > $curr_log "
 
         python -u utils/step2_denoise_training.py \
@@ -79,8 +76,7 @@ if [[ $stage == 3 ]]; then ## Train Model
 
     elif [[ $stage_v == 2 ]]; then ## Train Model (dereverb)
 
-        curr_log_dir=$log_dir/step2_dereverb_training; mkdir -pv $curr_log_dir
-        curr_log=$curr_log_dir/step2_dereverb_training.log
+        curr_log=$log_dir_DNN/step2_dereverb_training.log
         echo "python utils/step2_dereverb_training.py > $curr_log "
 
         python -u utils/step2_dereverb_training.py \
@@ -93,8 +89,7 @@ if [[ $stage == 3 ]]; then ## Train Model
 
     elif [[ $stage_v == 3 ]]; then ## Train Joint Model (denoise+dereverb)
 
-        curr_log_dir=$log_dir/step4_joint_training; mkdir -pv $curr_log_dir
-        curr_log=$curr_log_dir/step4_joint_training.log
+        curr_log=$log_dir_DNN/step4_joint_training.log
         echo "python utils/step4_joint_training.py > $curr_log "
 
         python -u utils/step4_joint_training.py \
@@ -114,8 +109,7 @@ if [[ $stage == 4 ]]; then ## Inference
     echo && echo "Stage $stage  : Test Model ..."
 
     if   [[ $stage_v == 1 ]]; then ## Inference (denoise)
-        curr_log_dir=$log_dir/step3_denoise_testing; mkdir -pv $curr_log_dir
-        curr_log=$curr_log_dir/step3_denoise_testing.log
+        curr_log=$log_dir_DNN/step3_denoise_testing.log
         echo "python utils/step3_denoise_testing.py > $curr_log &"
         python -u utils/step3_denoise_testing.py \
             -Enh_mode 'denoise' \
@@ -125,8 +119,7 @@ if [[ $stage == 4 ]]; then ## Inference
             > $curr_log
 
     elif [[ $stage_v == 2 ]]; then ## Inference (dereverb)
-        curr_log_dir=$log_dir/step3_dereverb_testing; mkdir -pv $curr_log_dir
-        curr_log=$curr_log_dir/step3_dereverb_testing.log
+        curr_log=$log_dir_DNN/step3_dereverb_testing.log
         echo "python utils/step3_dereverb_testing.py > $curr_log &"
         python -u utils/step3_dereverb_testing.py \
             -Enh_mode 'dereverb' \

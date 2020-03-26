@@ -5,7 +5,7 @@ if True:
     from _helper_funcs_ import *
     START_TIME=datetime.datetime.now()
     datetime.datetime.now() - START_TIME
-    print(f"===========\npython {sys.argv}\n    Start_Time:{START_TIME}\n===========")
+    print(f"===========\npython {' '.join(sys.argv)}\n    Start_Time:{START_TIME}\n===========")
 if True:
     import argparse
     parser=argparse.ArgumentParser()
@@ -69,11 +69,12 @@ print('Written to ',wave_dict_path)
 #################################################################
 END_TIME=datetime.datetime.now()
 print(f"===========\
-Done python {sys.argv}\
-    Start_Time  :{START_TIME}\
-    End_Time    :{END_TIME}\
-    Duration    :{END_TIME-START_TIME}\
-===========")
+    \nDone \
+    \npython {' '.join(sys.argv)}\
+    \nStart_Time  :{START_TIME}\
+    \nEnd_Time    :{END_TIME}\
+    \nDuration    :{END_TIME-START_TIME}\
+\n===========")
 
 """
 !import code; code.interact(local=vars())

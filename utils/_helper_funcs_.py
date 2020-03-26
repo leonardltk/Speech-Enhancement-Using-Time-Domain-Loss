@@ -427,9 +427,9 @@ if True : ## Step 2 : Model - Dereverb Model
     ## Training 
     def generate_wavetolps_DereverbNN_v4(gen_mode,
         Clean_WAVE_dict, RIR_WAVE_dict,
-        reverb_LPS_mu,reverb_LPS_std,reverb_LPS_std_inv,
-        clean_LPS_mu,clean_LPS_std,clean_LPS_std_inv,
-            num_freq_bins, n_fft, hop_length, batch_size, context, desired_power):
+            num_freq_bins, n_fft, hop_length, batch_size, context, desired_power,
+        reverb_LPS_mu=None,reverb_LPS_std=None,reverb_LPS_std_inv=None,
+        clean_LPS_mu=None,clean_LPS_std=None,clean_LPS_std_inv=None,):
         """
             Input : Clean_WAVE_dict
                     RIR_WAVE_dict
@@ -612,7 +612,6 @@ if True : ## Step 3 : Model - Joint Model
                 target_shape=(1,num_freq_bins), 
                 name='DereverbLPS_s1')(DereverbLPS_s1)
             if 1: ## TDR loss here
-                # DereverbWave_s1 = LPSphase2istft_Layer(
                 DereverbWave_s1 = LPSphase2istft_nowin_Layer(
                     n_fft=n_fft, 
                     frame_step=frame_step, 
@@ -633,6 +632,93 @@ if True : ## Step 3 : Model - Joint Model
             # 
         model_joint._name = mdl_name
         return model_joint
+    # v4 but output lps/tdr loss for denoise too
+    class s11_to_s1_2d(Layer): ## Pick out the center frame to perform masking on
+        def __init__(self, **kwargs):
+            super(s11_to_s1_2d, self).__init__(**kwargs)
+        def call(self, inputs, training=False):
+            curr_spliced_frame = tf.slice(inputs, 
+                        begin=[0, 5, 0],
+                        size =[-1, 1, -1])
+            return curr_spliced_frame
+    def joint_model_wave2wave_v5(mdl_name, 
+        dereverb_model, denoise_model,
+        context, num_freq_bins, n_fft, frame_step, 
+        mdl_mode='training'):
+        if True: ## Input
+            Inp_ReverbNoisyWave_s21 = Input(shape=(n_fft+(context-1)*frame_step,), name='ReverbNoisyWave_s21')
+            Inp_CleanWave_s1 = Input(shape=(n_fft+0*frame_step,), name='CleanWave_s1')
+        if True: ## Wave -> LPS
+            ## ReverbNoisy
+            ReverbNoisyLPS_s21 = wave2LPS_Layer(
+                n_fft=n_fft, 
+                frame_step=frame_step, 
+                name='ReverbNoisyAbs_s11')(Inp_ReverbNoisyWave_s21)
+            ## Clean
+            CleanLPS_s1, CleanPHA_s1 = wave2LPSpha_Layer(
+                n_fft=n_fft, 
+                frame_step=frame_step, 
+                name='CleanLPSPHA_s1')(Inp_CleanWave_s1)
+            ## Perform Splicing, and obtain "Denoised_s11" from "ReverbNoisyLPS_s21"
+            Splicing_list = splicing_s11(
+                _context=context//2+1,
+                _num_feats=num_freq_bins,
+                name='Splicing_list',
+                )(ReverbNoisyLPS_s21)
+        if True: ## Denoise
+            denoised_lps_list=[]
+            for inp_nsy in Splicing_list:
+                denoised_lps_list.append( denoise_model(inp_nsy) )
+            ## Reshape to s11
+            DenoisedLPS_s11=Concatenate(axis=1, 
+                name='concat')(denoised_lps_list)
+            DenoisedLPS_s11=Reshape(
+                target_shape=(11,num_freq_bins), 
+                name='Denoised_s11')(DenoisedLPS_s11)
+            if 1: ## TDR loss here
+                # Edit1 : See if can use tf.slice over here
+                DenoisedLPS_s1  = s11_to_s1_2d(name='DenoisedLPS_s1')(DenoisedLPS_s11)
+                # DenoisedLPS_s1  = s11_to_s1()(DenoisedLPS_s1)
+                # DenoisedLPS_s1 = Reshape(
+                #     target_shape=(1,num_freq_bins), 
+                #     name='DenoisedLPS_s1')(DenoisedLPS_s1)
+                # EOF Edit1
+                DenoisedWave_s1 = LPSphase2istft_nowin_Layer(
+                    n_fft=n_fft, 
+                    frame_step=frame_step, 
+                    name='DenoisedWave_s1')([DenoisedLPS_s1,CleanPHA_s1])
+            if 1: ## LPS loss here
+                Zero_DenoisedLPS = Subtract(
+                    name='Zero_DenoisedLPS')([DenoisedLPS_s1,CleanLPS_s1])
+        if True: ## Dereverb
+            DereverbLPS_s1=dereverb_model(DenoisedLPS_s11)
+            DereverbLPS_s1 = Reshape(
+                target_shape=(1,num_freq_bins), 
+                name='DereverbLPS_s1')(DereverbLPS_s1)
+            if 1: ## TDR loss here
+                DereverbWave_s1 = LPSphase2istft_nowin_Layer(
+                    n_fft=n_fft, 
+                    frame_step=frame_step, 
+                    name='DereverbWave_s1')([DereverbLPS_s1,CleanPHA_s1])
+            if 1: ## LPS loss here
+                Zero_DereverbLPS = Subtract(
+                    name='Zero_DereverbLPS')([DereverbLPS_s1,CleanLPS_s1])
+        if True: ## Return
+            if mdl_mode=='training':
+                model_joint=Model(
+                    [Inp_ReverbNoisyWave_s21,Inp_CleanWave_s1],
+                    [Zero_DenoisedLPS, DenoisedWave_s1,
+                     Zero_DereverbLPS, DereverbWave_s1])
+                # [Zero_layer, DereverbWave_s1])
+            elif mdl_mode=='inference':
+                model_joint=Model(
+                    [Inp_ReverbNoisyWave_s21],
+                    [DereverbLPS_s1,ReverbNoisyLPS_s21]
+                )
+            # 
+        model_joint._name = mdl_name
+        return model_joint
+
 
     ## Training 
     def generate_wavetoabs_JointNN_v3(gen_mode,
@@ -707,6 +793,95 @@ if True : ## Step 3 : Model - Joint Model
                       }
             else:
                 raise Exception('Name Error : gen_mode = {predict,fit}')
+    # v3 but output lps/tdr loss for denoise too
+    def generate_wavetoabs_JointNN_v4(gen_mode,
+        Clean_WAVE_dict, NSE_WAVE_dict, RIR_WAVE_dict,
+        num_freq_bins, n_fft, hop_length, batch_size, context,
+        snr_list, desired_power,):
+        """
+            Input : Clean_WAVE_dict
+                    NSE_WAVE_dict
+                    RIR_WAVE_dict
+            Return: ReverbNoisyWave_s21
+                    CleanWave_s1
+        """
+        if True: ## Init
+            s21=context//2  # 21//2=10
+            s11=s21//2      # 10//2=5
+            c_wave_idx=s21*hop_length
+            input_s21=n_fft + (2*s21*hop_length)
+            input_s11=n_fft + (2*s11*hop_length)
+            output_s1=n_fft
+            c_idx_s21=s21*hop_length # This is the shift from noisy vs clean
+            c_idx_s11=s11*hop_length # This is the shift from noisy vs reverb
+            # 
+            NoisyReverb_WAVE_s21 = np.empty( (batch_size, input_s21) ) # NoisyReverb_WAVE_s21
+            # Reverb_WAVE_s11      = np.empty( (batch_size, input_s11) ) # Reverb_WAVE_s11
+            Reverb_WAVE_s1       = np.empty( (batch_size, output_s1) ) # Reverb_WAVE_s1
+            Clean_WAVE_s1        = np.empty( (batch_size, output_s1) )
+            Output_ZERO_s1=np.zeros( (batch_size, 1, num_freq_bins) )
+            # 
+            Clean_WAVE_key = list(Clean_WAVE_dict)
+            NSE_WAVE_key = list(NSE_WAVE_dict)
+            RIR_WAVE_key = list(RIR_WAVE_dict)
+            # 
+            sess = tf.compat.v1.Session()
+            with sess.as_default(): tf_hann=tf.signal.hann_window(256, dtype=tf.float32).eval()
+        if True: ## Dict
+            Input_Dict = {
+                'ReverbNoisyWave_s21':NoisyReverb_WAVE_s21,
+                'CleanWave_s1':Clean_WAVE_s1,
+            }
+            Output_Dict = {
+                'DenoisedWave_s1':Reverb_WAVE_s1*tf_hann,
+                'Zero_DenoisedLPS':Output_ZERO_s1,
+                'DereverbWave_s1':Clean_WAVE_s1*tf_hann,
+                'Zero_DereverbLPS':Output_ZERO_s1,
+              }
+        ## Iterate
+        while True:
+            bs_idx=0
+            while bs_idx < batch_size:
+                ## Init
+                des_snr=random.choice(snr_list)
+                ## Choose utt
+                clean_uttid=random.choice(Clean_WAVE_key)
+                nse_uttid=random.choice(NSE_WAVE_key)
+                rir_uttid=random.choice(RIR_WAVE_key)
+                ## Read waves from dict
+                clean_WAVE_raw=Clean_WAVE_dict[clean_uttid]
+                while len(clean_WAVE_raw)<input_s21: continue
+                noise_WAVE=NSE_WAVE_dict[nse_uttid]
+                RIR_WAVE=RIR_WAVE_dict[rir_uttid]
+                ## Augmentation
+                clean_wav, reverb_wav, noisy_wav=clean_to_noisyreverb(
+                    clean_WAVE_raw, noise_WAVE, RIR_WAVE, 
+                    des_snr, desired_power)
+                ## Choose a random starting point of the wave
+                wave_idx=np.random.randint( input_s21 , len(noisy_wav)-input_s21 )
+                ## Appending to batch
+                #  Get s21 of noisy wave
+                #  Get s11 of reverb wave
+                NoisyReverb_WAVE_s21[bs_idx,:]  =   noisy_wav[  wave_idx          : wave_idx+input_s21          ]
+                # Reverb_WAVE_s11[bs_idx,:]       =   reverb_wav[wave_idx+c_idx_s11 : wave_idx+c_idx_s11+input_s11]
+                Reverb_WAVE_s1[bs_idx,:]        =   reverb_wav[wave_idx+c_idx_s21 : wave_idx+c_idx_s21+output_s1]
+                Clean_WAVE_s1[bs_idx,:]         =   clean_wav[ wave_idx+c_idx_s21 : wave_idx+c_idx_s21+output_s1]
+                bs_idx += 1
+            if   gen_mode=='predict':
+                yield [NoisyReverb_WAVE_s21, Clean_WAVE_s1]
+            elif gen_mode=='fit':
+                yield {
+                        'ReverbNoisyWave_s21':NoisyReverb_WAVE_s21,
+                        'CleanWave_s1':Clean_WAVE_s1,
+                      }, {
+                        'DenoisedWave_s1':Reverb_WAVE_s1*tf_hann,
+                        'Zero_DenoisedLPS':Output_ZERO_s1,
+                        'DereverbWave_s1':Clean_WAVE_s1*tf_hann,
+                        'Zero_DereverbLPS':Output_ZERO_s1,
+                      }
+                      # Input_Dict, Output_Dict
+            else:
+                raise Exception('Name Error : gen_mode = {predict,fit}')
     class SaveModel_joint(Callback):
         def __init__(self, joint_model_e2e, conf_DNN, conf_DNN_dereverb, conf_DNN_denoise):
             self.joint_model_e2e = joint_model_e2e
@@ -721,7 +896,7 @@ if True : ## Step 3 : Model - Joint Model
                     weights_path=self.conf_DNN.Training_weights_path,
                     verbose=False)
             if True : ## Save dereverb submodel
-                layername = self.conf_DNN_dereverb.mdl_name+'_dereverb'
+                layername = self.conf_DNN_dereverb.mdl_name
                 model_joint_dereverb = Model(
                     inputs = self.joint_model_e2e.get_layer(layername).input,
                     outputs = self.joint_model_e2e.get_layer(layername).output,
@@ -732,7 +907,7 @@ if True : ## Step 3 : Model - Joint Model
                     weights_path = self.conf_DNN.Enhance_weights_path.replace( '.h5','_dereverb.h5'),
                     verbose=False)
             if True : ## Save denoise submodel
-                layername = self.conf_DNN_denoise.mdl_name+'_denoise'
+                layername = self.conf_DNN_denoise.mdl_name
                 model_joint_denoise = Model(
                     inputs = self.joint_model_e2e.get_layer(layername).input,
                     outputs = self.joint_model_e2e.get_layer(layername).output,
@@ -747,7 +922,7 @@ if True : ## Step 3 : Model - Joint Model
     def joint_uttid_to_inputs_test(): 1
 
 def versioning(vrs):
-    if vrs == 'v1_TDR': # _beta
+    if vrs == 'v1_TDR_alpha': # alpha
         return {
         'build_denoise_model': build_denoise_model_v3,
             'denoise_model_wave2abs': denoise_model_wave2abs_wocmvn_v4,
@@ -762,6 +937,24 @@ def versioning(vrs):
         'build_joint_model': None,
             'joint_model_wave2wave': joint_model_wave2wave_v4,
                 'generate_wavetolps_JointNN': generate_wavetoabs_JointNN_v3,
+                    'joint_reconstruction_test': None,
+                    'joint_uttid_to_inputs_test': None,
+            }
+    elif vrs == 'v1_TDR': # alpha
+        return {
+        'build_denoise_model': build_denoise_model_v3,
+            'denoise_model_wave2abs': denoise_model_wave2abs_wocmvn_v4,
+                'generate_wavetoabs_DenoisingNN':generate_wavetoabs_DenoisingNN_v6,
+                    'denoise_reconstruction_test': denoise_reconstruction_test_v2,
+                    'denoise_uttid_to_inputs_test': denoise_uttid_to_inputs_test_v3,
+        'build_dereverb_model': build_dereverb_model_v1,
+            'dereverb_model_wave2abs': dereverb_model_wave2abs_wocmvn_v4,
+                'generate_wavetolps_DereverbNN': generate_wavetolps_DereverbNN_v4,
+                    'dereverb_reconstruction_test': dereverb_reconstruction_test_v2,
+                    'dereverb_uttid_to_inputs_test': dereverb_uttid_to_inputs_test_v2,
+        'build_joint_model': None,
+            'joint_model_wave2wave': joint_model_wave2wave_v5,
+                'generate_wavetolps_JointNN': generate_wavetoabs_JointNN_v4,
                     'joint_reconstruction_test': None,
                     'joint_uttid_to_inputs_test': None,
             }

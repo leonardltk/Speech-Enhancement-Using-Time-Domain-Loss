@@ -5,7 +5,7 @@ if True:
     from _helper_funcs_ import *
     START_TIME=datetime.datetime.now()
     datetime.datetime.now() - START_TIME
-    print(f"===========\npython {sys.argv}\n    Start_Time:{START_TIME}\n===========")
+    print(f"===========\npython {' '.join(sys.argv)}\n    Start_Time:{START_TIME}\n===========")
 if True:
     print('############ Printing Config Params ############')
     import argparse
@@ -20,6 +20,7 @@ if True:
     conf_DNN=conf.DNN_conf(args.Enh_mode, args.Archi_vrs) # joint
     if True: ## Update parameters for joint model
         conf_DNN.context=21 # We load in s21 instead of s11 due to denoising prior to dereverbing
+        conf_DNN.compile_dict['loss_weights']+=conf_DNN.compile_dict['loss_weights']
         str(conf_DNN)
     conf_DNN_denoise=conf.DNN_conf('denoise', args.Archi_vrs)
     conf_DNN_dereverb=conf.DNN_conf('dereverb', args.Archi_vrs)
@@ -71,8 +72,8 @@ if True : ## 'denoise'
     load_model_keras_kwargs={
         'model_mode':'path', 
         'custom_objects':{'s11_to_s1':s11_to_s1}, 
-        'model_path':conf_DNN.Enhance_model_path, 
-        'weights_path':conf_DNN.Enhance_weights_path, 
+        'model_path':conf_DNN_denoise.Enhance_model_path, 
+        'weights_path':conf_DNN_denoise.Enhance_weights_path, 
         'verbose':True
     }
     model_denoise = load_model_keras( **load_model_keras_kwargs)
@@ -83,8 +84,8 @@ if True : ## 'dereverb'
     load_model_keras_kwargs={
         'model_mode':'path', 
         'custom_objects':{'s11_to_s1':s11_to_s1}, 
-        'model_path':conf_DNN.Enhance_model_path, 
-        'weights_path':conf_DNN.Enhance_weights_path, 
+        'model_path':conf_DNN_dereverb.Enhance_model_path, 
+        'weights_path':conf_DNN_dereverb.Enhance_weights_path, 
         'verbose':True
     }
     model_dereverb = load_model_keras( **load_model_keras_kwargs)
@@ -104,12 +105,18 @@ if True : ## 'joint'
     }
     joint_model_e2e = joint_model_wave2wave(**joint_model_wave2wave_kwargs)
     joint_model_e2e.summary()
+    #
     save_model(joint_model_e2e, 
                     model_path=conf_DNN.Training_model_path, 
                     weights_path=conf_DNN.Training_weights_path,
                     verbose=True)
 if True : ## Compiling
-    joint_model_e2e = compile_opt(_mod_in=joint_model_e2e, _opt_mode=conf_DNN.opt_mode, _opt_dict=conf_DNN.opt_dict, compile_dict=conf_DNN.compile_dict)
+    pp.pprint(conf_DNN.compile_dict)
+    joint_model_e2e = compile_opt(
+        _mod_in=joint_model_e2e, 
+        _opt_mode=conf_DNN.opt_mode, 
+        _opt_dict=conf_DNN.opt_dict, 
+        compile_dict=conf_DNN.compile_dict)
 
 if True : ## Callbacks
     reduce_lr = ReduceLROnPlateau(**conf_DNN.ReduceLROnPlateau_kwargs)
@@ -141,11 +148,12 @@ if True : ## Training for wave-to-lps
 #################################################################
 END_TIME=datetime.datetime.now()
 print(f"===========\
-Done python {sys.argv}\
-    Start_Time  :{START_TIME}\
-    End_Time    :{END_TIME}\
-    Duration    :{END_TIME-START_TIME}\
-===========")
+    \nDone \
+    \npython {' '.join(sys.argv)}\
+    \nStart_Time  :{START_TIME}\
+    \nEnd_Time    :{END_TIME}\
+    \nDuration    :{END_TIME-START_TIME}\
+\n===========")
 
 """
 !import code; code.interact(local=vars())

@@ -6,10 +6,9 @@ if True:
     # 
     START_TIME=datetime.datetime.now()
     datetime.datetime.now() - START_TIME
-    print(f"===========\npython {sys.argv}\n    Start_Time:{START_TIME}\n===========")
-
-print('############ Printing Config Params ############')
+    print(f"===========\npython {' '.join(sys.argv)}\n    Start_Time:{START_TIME}\n===========")
 if True:
+    print('############ Printing Config Params ############')
     import argparse
     parser=argparse.ArgumentParser()
     parser.add_argument('-Archi_vrs')
@@ -26,7 +25,7 @@ if True:
     os.environ["CUDA_VISIBLE_DEVICES"] = ""
     # tf.compat.v1.disable_eager_execution()
     # tf.compat.v1.enable_eager_execution()
-print('############ End of Config Params ##############')
+    print('############ End of Config Params ##############')
 if True : ## versioning
     functions_dict = versioning(conf_DNN.Archi_vrs)
     build_denoise_model = functions_dict['build_denoise_model']
@@ -56,11 +55,12 @@ if 1 : ## Building Model : Default mtd.
 #################################################################
 END_TIME=datetime.datetime.now()
 print(f"===========\
-Done python {sys.argv}\
-    Start_Time  :{START_TIME}\
-    End_Time    :{END_TIME}\
-    Duration    :{END_TIME-START_TIME}\
-===========")
+    \nDone \
+    \npython {' '.join(sys.argv)}\
+    \nStart_Time  :{START_TIME}\
+    \nEnd_Time    :{END_TIME}\
+    \nDuration    :{END_TIME-START_TIME}\
+\n===========")
 
 """
 !import code; code.interact(local=vars())
